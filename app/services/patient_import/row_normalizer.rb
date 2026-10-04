@@ -38,7 +38,7 @@ module PatientImport
     end
 
     def call(row)
-      attributes = { "sex" => "unknown" }
+      attributes = {}
       issues = []
       reformatted = []
 
