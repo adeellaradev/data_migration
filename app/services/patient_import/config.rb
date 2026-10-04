@@ -28,6 +28,10 @@ module PatientImport
       build_lookups
     end
 
+    def headers_for(field)
+      Array(@columns[field])
+    end
+
     def field_for_header(header)
       @fields_by_header[header]
     end
