@@ -25,9 +25,11 @@
 
   <body>
     <% if authenticated? %>
-      <header>
-        <%= link_to "Data Migrations", root_path %>
-        <span>Signed in as <%= Current.user.email_address %></span>
+      <header class="site-header">
+        <%= link_to "Data Migrations", root_path, class: "brand" %>
+        <%= link_to "Migrations", data_migrations_path %>
+        <%= link_to "Patients", patients_path %>
+        <span class="user">Signed in as <%= Current.user.email_address %></span>
         <%= button_to "Sign out", session_path, method: :delete %>
       </header>
     <% end %>

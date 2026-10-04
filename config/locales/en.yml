@@ -29,3 +29,10 @@
 
 en:
   hello: "Hello world"
+  activerecord:
+    attributes:
+      patient:
+        health_number_province: "Health number province"
+        address_line1: "Address line 1"
+        address_line2: "Address line 2"
+        date_of_birth: "Date of birth"
