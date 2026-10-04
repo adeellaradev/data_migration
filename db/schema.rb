@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_04_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,75 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "data_migration_rows", force: :cascade do |t|
+    t.bigint "data_migration_id", null: false
+    t.bigint "patient_id"
+    t.integer "row_number", null: false
+    t.string "outcome", null: false
+    t.text "raw_data"
+    t.text "changed_fields"
+    t.datetime "raw_data_purged_at"
+    t.jsonb "issues", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["data_migration_id", "outcome"], name: "index_data_migration_rows_on_data_migration_id_and_outcome"
+    t.index ["data_migration_id", "row_number"], name: "index_data_migration_rows_on_data_migration_id_and_row_number", unique: true
+    t.index ["issues"], name: "index_data_migration_rows_on_issues", using: :gin
+    t.index ["patient_id"], name: "index_data_migration_rows_on_patient_id"
+    t.check_constraint "outcome::text = ANY (ARRAY['created'::character varying, 'updated'::character varying, 'unchanged'::character varying, 'rejected'::character varying, 'duplicate'::character varying]::text[])", name: "data_migration_rows_outcome_check"
+  end
+
+  create_table "data_migrations", force: :cascade do |t|
+    t.string "source_name", null: false
+    t.string "filename", null: false
+    t.string "file_sha256", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.integer "total_rows", default: 0, null: false
+    t.integer "created_count", default: 0, null: false
+    t.integer "updated_count", default: 0, null: false
+    t.integer "unchanged_count", default: 0, null: false
+    t.integer "rejected_count", default: 0, null: false
+    t.integer "duplicate_count", default: 0, null: false
+    t.integer "rows_with_warnings_count", default: 0, null: false
+    t.jsonb "stats", default: {}, null: false
+    t.text "error_message"
+    t.datetime "source_file_purged_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_data_migrations_on_created_at"
+    t.index ["file_sha256"], name: "index_data_migrations_on_file_sha256"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "data_migrations_status_check"
+  end
+
+  create_table "patients", force: :cascade do |t|
+    t.text "health_number", null: false
+    t.string "health_number_province", limit: 2, null: false
+    t.text "first_name"
+    t.text "middle_name"
+    t.text "last_name"
+    t.text "date_of_birth"
+    t.text "email"
+    t.text "phone"
+    t.text "address_line1"
+    t.text "address_line2"
+    t.text "city"
+    t.text "postal_code"
+    t.string "sex", default: "unknown", null: false
+    t.string "address_province", limit: 2
+    t.bigint "created_by_migration_id"
+    t.bigint "last_changed_by_migration_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_migration_id"], name: "index_patients_on_created_by_migration_id"
+    t.index ["health_number_province", "health_number"], name: "index_patients_on_health_number_identity", unique: true
+    t.index ["last_changed_by_migration_id"], name: "index_patients_on_last_changed_by_migration_id"
+    t.check_constraint "address_province IS NULL OR (address_province::text = ANY (ARRAY['AB'::character varying, 'BC'::character varying, 'MB'::character varying, 'NB'::character varying, 'NL'::character varying, 'NS'::character varying, 'NT'::character varying, 'NU'::character varying, 'ON'::character varying, 'PE'::character varying, 'QC'::character varying, 'SK'::character varying, 'YT'::character varying]::text[]))", name: "patients_address_province_check"
+    t.check_constraint "health_number_province::text = ANY (ARRAY['AB'::character varying, 'BC'::character varying, 'MB'::character varying, 'NB'::character varying, 'NL'::character varying, 'NS'::character varying, 'NT'::character varying, 'NU'::character varying, 'ON'::character varying, 'PE'::character varying, 'QC'::character varying, 'SK'::character varying, 'YT'::character varying]::text[])", name: "patients_health_number_province_check"
+    t.check_constraint "sex::text = ANY (ARRAY['male'::character varying, 'female'::character varying, 'non_binary'::character varying, 'unknown'::character varying]::text[])", name: "patients_sex_check"
   end
 
   create_table "solid_queue_batch_executions", force: :cascade do |t|
@@ -194,6 +263,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_03_000001) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "data_migration_rows", "data_migrations", on_delete: :cascade
+  add_foreign_key "data_migration_rows", "patients"
+  add_foreign_key "patients", "data_migrations", column: "created_by_migration_id"
+  add_foreign_key "patients", "data_migrations", column: "last_changed_by_migration_id"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
