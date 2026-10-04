@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# Runs the web server with the Solid Queue worker inside Puma, so one command
+# starts everything needed to upload and process a data migration.
+ENV["SOLID_QUEUE_IN_PUMA"] ||= "1"
+exec "./bin/rails", "server",
+  *ARGV
