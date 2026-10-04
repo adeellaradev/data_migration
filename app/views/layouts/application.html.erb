@@ -24,6 +24,19 @@
   </head>
 
   <body>
-    <%= yield %>
+    <% if authenticated? %>
+      <header>
+        <%= link_to "Data Migrations", root_path %>
+        <span>Signed in as <%= Current.user.email_address %></span>
+        <%= button_to "Sign out", session_path, method: :delete %>
+      </header>
+    <% end %>
+
+    <%= tag.p(flash[:alert], class: "alert") if flash[:alert] %>
+    <%= tag.p(flash[:notice], class: "notice") if flash[:notice] %>
+
+    <main>
+      <%= yield %>
+    </main>
   </body>
 </html>
