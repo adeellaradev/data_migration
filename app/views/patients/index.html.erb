@@ -1,0 +1,55 @@
+<% content_for :title, "Patients" %>
+
+<h1>Patients</h1>
+
+<section class="panel">
+  <%= form_with url: patients_path, method: :get do |form| %>
+    <div class="form-row">
+      <div>
+        <%= form.label :health_number, "Health number" %>
+        <%= form.text_field :health_number, value: @health_number %>
+      </div>
+      <div>
+        <%= form.label :province %>
+        <%= form.select :province, Province::NAMES.map { |code, name| [ name, code ] }, { include_blank: "Any", selected: @province } %>
+      </div>
+      <div>
+        <%= form.submit "Search", name: nil %>
+        <% if @health_number.present? %><%= link_to "Clear", patients_path %><% end %>
+      </div>
+    </div>
+    <p class="muted">Exact match only: health numbers are stored encrypted, so partial search isn't possible.</p>
+  <% end %>
+</section>
+
+<% if @patients.empty? %>
+  <p class="muted"><%= @health_number.present? ? "No patient with that health number." : "No patients yet." %></p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Health number</th>
+        <th>Province</th>
+        <th>Name</th>
+        <th>Sex</th>
+        <th>Created by</th>
+        <th>Last changed by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @patients.each do |patient| %>
+        <tr>
+          <td><%= link_to "##{patient.id}", patient %></td>
+          <td><code><%= mask_health_number(patient.health_number) %></code></td>
+          <td><%= patient.health_number_province %></td>
+          <td><%= patient.full_name %></td>
+          <td><%= patient.sex.humanize %></td>
+          <td><%= patient.created_by_migration_id ? link_to("##{patient.created_by_migration_id}", data_migration_path(patient.created_by_migration_id)) : "—" %></td>
+          <td><%= patient.last_changed_by_migration_id ? link_to("##{patient.last_changed_by_migration_id}", data_migration_path(patient.last_changed_by_migration_id)) : "—" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <%= pagination_links %>
+<% end %>

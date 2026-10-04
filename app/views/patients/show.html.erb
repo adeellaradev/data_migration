@@ -1,0 +1,58 @@
+<% content_for :title, "Patient ##{@patient.id}" %>
+
+<p><%= link_to "← Patients", patients_path %></p>
+
+<h1><%= @patient.full_name.presence || "Patient ##{@patient.id}" %></h1>
+
+<div class="two-columns">
+  <section>
+    <h2>Identity</h2>
+    <dl class="details">
+      <dt>Health number</dt><dd><code><%= @patient.health_number %></code></dd>
+      <dt>Province of origin</dt><dd><%= Province.name_for(@patient.health_number_province) %> (<%= @patient.health_number_province %>)</dd>
+      <dt>First name</dt><dd><%= @patient.first_name.presence || "—" %></dd>
+      <dt>Middle name</dt><dd><%= @patient.middle_name.presence || "—" %></dd>
+      <dt>Last name</dt><dd><%= @patient.last_name.presence || "—" %></dd>
+      <dt>Date of birth</dt><dd><%= @patient.date_of_birth || "—" %></dd>
+      <dt>Sex</dt><dd><%= @patient.sex.humanize %></dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Contact</h2>
+    <dl class="details">
+      <dt>Email</dt><dd><%= @patient.email.presence || "—" %></dd>
+      <dt>Phone</dt><dd><%= @patient.phone.presence || "—" %></dd>
+      <dt>Address</dt>
+      <dd>
+        <%= safe_join([ @patient.address_line1, @patient.address_line2,
+                        [ @patient.city, @patient.address_province, @patient.postal_code ].compact_blank.join(" ") ].compact_blank, tag.br).presence || "—" %>
+      </dd>
+    </dl>
+  </section>
+</div>
+
+<h2>Lineage</h2>
+<dl class="details">
+  <dt>Created by</dt>
+  <dd><%= @patient.created_by_migration ? link_to("Migration ##{@patient.created_by_migration_id}", @patient.created_by_migration) : "—" %> · <%= format_time(@patient.created_at) %></dd>
+  <dt>Last changed by</dt>
+  <dd><%= @patient.last_changed_by_migration ? link_to("Migration ##{@patient.last_changed_by_migration_id}", @patient.last_changed_by_migration) : "—" %> · <%= format_time(@patient.updated_at) %></dd>
+</dl>
+
+<h2>Migration history</h2>
+<table>
+  <thead><tr><th>Migration</th><th>Date</th><th class="number">Row</th><th>Outcome</th><th>Changes</th><th></th></tr></thead>
+  <tbody>
+    <% @history.each do |row| %>
+      <tr>
+        <td><%= link_to "##{row.data_migration_id}", row.data_migration %></td>
+        <td><%= format_time(row.created_at) %></td>
+        <td class="number"><%= row.row_number %></td>
+        <td><%= tag.span(row.outcome, class: "badge badge-#{row.outcome}") %></td>
+        <td><%= row.changed_fields.present? ? row.changed_fields.keys.map { |field| field_label(field) }.join(", ") : "—" %></td>
+        <td><%= link_to "Details", data_migration_row_path(row.data_migration_id, row) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
