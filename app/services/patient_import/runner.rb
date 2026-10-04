@@ -28,20 +28,33 @@ module PatientImport
       end
 
       def import
-        table = read_csv
+        timings_ms = {}
+
+        table = timed(timings_ms, "read") { read_csv }
         header_check = HeaderCheck.call(table.headers.compact, config: @config)
         record_headers(header_check)
         raise FileError, missing_columns_message(header_check) unless header_check.valid?
 
-        entries = normalize(table, header_check)
+        entries = timed(timings_ms, "clean") { normalize(table, header_check) }
         winning_index = winning_index_by_key(entries)
 
-        with_write_lock do
-          entries.each_with_index do |entry, index|
-            superseded = !entry.result.rejected? && winning_index[entry.result.key] != index
-            write(entry, superseded: superseded)
+        written = timed(timings_ms, "write") do
+          with_write_lock do
+            entries.each_with_index.map do |entry, index|
+              superseded = !entry.result.rejected? && winning_index[entry.result.key] != index
+              write(entry, superseded: superseded)
+            end
           end
         end
+
+        record_statistics(Statistics.new(
+          entries: entries,
+          outcomes: written.map(&:first),
+          changed_fields: written.map(&:last),
+          column_map: header_check.column_map,
+          timings_ms: timings_ms,
+          config: @config
+        ))
 
         [ "completed", nil ]
       rescue FileError => e
@@ -69,6 +82,17 @@ module PatientImport
             "duplicate" => header_check.duplicate_headers
           }
         ))
+      end
+
+      def record_statistics(statistics)
+        @data_migration.update!(stats: @data_migration.stats.merge(statistics.to_h))
+      end
+
+      def timed(timings_ms, phase)
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        result = yield
+        timings_ms[phase] = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
+        result
       end
 
       def missing_columns_message(header_check)
@@ -119,6 +143,8 @@ module PatientImport
               changed_fields: changes,
               issues: entry.result.issues.map(&:to_h)
             )
+
+            [ outcome, changes.keys ]
           end
         rescue ActiveRecord::RecordNotUnique
           retry if attempts < WRITE_ATTEMPTS
