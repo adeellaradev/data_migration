@@ -1,0 +1,46 @@
+shared:
+  columns:
+    health_number: ["health identifier", "health number", "health card number"]
+    health_number_province: ["health identifier province", "health number province", "health card province"]
+    first_name: ["first name", "given name"]
+    middle_name: ["middle name"]
+    last_name: ["last name", "surname", "family name"]
+    date_of_birth: ["date of birth", "dob", "birth date"]
+    sex: ["sex"]
+    email: ["email", "email address"]
+    phone: ["phone", "phone number"]
+    address_line1: ["address 1", "address line 1"]
+    address_line2: ["address 2", "address line 2"]
+    city: ["address city", "city"]
+    address_province: ["address province"]
+    postal_code: ["address postal code", "postal code"]
+
+  required_columns:
+    - health_number
+    - health_number_province
+
+  placeholders: ["unknown", "n/a", "na", "none", "null", "nil", "-", "--", "?"]
+
+  province_aliases:
+    "AB": ["alta", "alb"]
+    "BC": ["brit columbia"]
+    "MB": ["man"]
+    "NL": ["nfld", "newfoundland", "labrador"]
+    "NT": ["nwt"]
+    "ON": ["ont"]
+    "PE": ["pei"]
+    "QC": ["que", "pq"]
+    "SK": ["sask"]
+    "YT": ["yk", "yukon territory"]
+
+  sex_values:
+    male: ["m", "male"]
+    female: ["f", "female"]
+    non_binary: ["nb", "x", "non-binary", "non binary"]
+    unknown: ["u", "unknown", "unk"]
+
+  health_number_formats:
+    "AB": '\A\d{9}\z'
+    "BC": '\A\d{10}\z'
+    "ON": '\A\d{10}([A-Z]{2})?\z'
+    "QC": '\A[A-Z]{4}\d{8}\z'
