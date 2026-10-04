@@ -15,7 +15,7 @@ module PatientImport
       I18n.transliterate(value.to_s).downcase.gsub(/[^a-z0-9]/, "")
     end
 
-    attr_reader :required_columns
+    attr_reader :required_columns, :raw_data_retention_days
 
     def initialize(settings)
       @columns = settings.fetch("columns", {})
@@ -24,6 +24,7 @@ module PatientImport
       @province_aliases = settings.fetch("province_aliases", {})
       @sex_values = settings.fetch("sex_values", {})
       @health_number_formats = settings.fetch("health_number_formats", {})
+      @raw_data_retention_days = settings["raw_data_retention_days"]
       validate!
       build_lookups
     end
@@ -77,6 +78,10 @@ module PatientImport
           Regexp.new(pattern)
         rescue RegexpError => e
           problems << "health_number_formats: #{code} is not a valid pattern (#{e.message})"
+        end
+
+        unless @raw_data_retention_days.is_a?(Integer) && @raw_data_retention_days.positive?
+          problems << "raw_data_retention_days must be a positive whole number of days"
         end
 
         raise Invalid, "config/data_migration.yml is invalid:\n- #{problems.join("\n- ")}" if problems.any?

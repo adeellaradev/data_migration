@@ -1,4 +1,6 @@
 shared:
+  raw_data_retention_days: 30
+
   columns:
     health_number: ["health identifier", "health number", "health card number"]
     health_number_province: ["health identifier province", "health number province", "health card province"]
