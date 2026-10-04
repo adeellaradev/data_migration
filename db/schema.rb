@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_04_000003) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_04_171802) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -79,8 +79,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_04_000003) do
     t.datetime "source_file_purged_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "uploaded_by_id", null: false
     t.index ["created_at"], name: "index_data_migrations_on_created_at"
     t.index ["file_sha256"], name: "index_data_migrations_on_file_sha256"
+    t.index ["uploaded_by_id"], name: "index_data_migrations_on_uploaded_by_id"
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "data_migrations_status_check"
   end
 
@@ -109,6 +111,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_04_000003) do
     t.check_constraint "address_province IS NULL OR (address_province::text = ANY (ARRAY['AB'::character varying, 'BC'::character varying, 'MB'::character varying, 'NB'::character varying, 'NL'::character varying, 'NS'::character varying, 'NT'::character varying, 'NU'::character varying, 'ON'::character varying, 'PE'::character varying, 'QC'::character varying, 'SK'::character varying, 'YT'::character varying]::text[]))", name: "patients_address_province_check"
     t.check_constraint "health_number_province::text = ANY (ARRAY['AB'::character varying, 'BC'::character varying, 'MB'::character varying, 'NB'::character varying, 'NL'::character varying, 'NS'::character varying, 'NT'::character varying, 'NU'::character varying, 'ON'::character varying, 'PE'::character varying, 'QC'::character varying, 'SK'::character varying, 'YT'::character varying]::text[])", name: "patients_health_number_province_check"
     t.check_constraint "sex::text = ANY (ARRAY['male'::character varying, 'female'::character varying, 'non_binary'::character varying, 'unknown'::character varying]::text[])", name: "patients_sex_check"
+  end
+
+  create_table "sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "ip_address"
+    t.string "user_agent"
+    t.datetime "last_active_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
   create_table "solid_queue_batch_executions", force: :cascade do |t|
@@ -261,12 +273,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_04_000003) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "users", force: :cascade do |t|
+    t.string "email_address", null: false
+    t.string "password_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email_address"], name: "index_users_on_email_address", unique: true
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "data_migration_rows", "data_migrations", on_delete: :cascade
   add_foreign_key "data_migration_rows", "patients"
+  add_foreign_key "data_migrations", "users", column: "uploaded_by_id"
   add_foreign_key "patients", "data_migrations", column: "created_by_migration_id"
   add_foreign_key "patients", "data_migrations", column: "last_changed_by_migration_id"
+  add_foreign_key "sessions", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

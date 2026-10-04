@@ -1,6 +1,7 @@
 class DataMigration < ApplicationRecord
   STATUSES = %w[pending running completed failed].freeze
 
+  belongs_to :uploaded_by, class_name: "User", inverse_of: :data_migrations
   has_one_attached :source_file
   has_many :rows, -> { order(:row_number) }, class_name: "DataMigrationRow", dependent: :delete_all
 
