@@ -2,6 +2,14 @@ Rails.application.routes.draw do
   root "data_migrations#index"
 
   resource :session, only: %i[new create destroy]
+
+  resources :data_migrations, only: %i[index create show] do
+    resources :rows, only: :show, controller: "data_migration_rows"
+    resource :issue_report, only: :show
+  end
+
+  resources :patients, only: %i[index show]
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

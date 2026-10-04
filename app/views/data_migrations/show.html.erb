@@ -1,0 +1,196 @@
+<% content_for :title, "Migration ##{@data_migration.id}" %>
+<% stats = @data_migration.stats %>
+<% summary = stats["summary"] || {} %>
+
+<% unless @data_migration.finished? %>
+  <div data-controller="auto-refresh"></div>
+<% end %>
+
+<h1>Migration #<%= @data_migration.id %> <%= status_badge(@data_migration.status) %></h1>
+
+<% if @data_migration.error_message.present? %>
+  <p class="error-message"><%= @data_migration.error_message %></p>
+<% end %>
+
+<% previous = @data_migration.previous_identical_migrations.to_a %>
+<% if previous.any? %>
+  <p class="muted">Same file as <%= safe_join(previous.map { |m| link_to("migration ##{m.id}", m) }, ", ") %>.</p>
+<% end %>
+
+<dl class="details">
+  <dt>Source</dt><dd><%= @data_migration.source_name %></dd>
+  <dt>File</dt><dd><%= @data_migration.filename %></dd>
+  <dt>SHA-256</dt><dd><code><%= @data_migration.file_sha256 %></code></dd>
+  <dt>Uploaded by</dt><dd><%= @data_migration.uploaded_by.email_address %></dd>
+  <dt>Started</dt><dd><%= format_time(@data_migration.started_at) %></dd>
+  <dt>Finished</dt><dd><%= format_time(@data_migration.finished_at) %></dd>
+  <dt>Duration</dt>
+  <dd>
+    <%= format_duration(@data_migration.duration) %>
+    <% if @data_migration.rows_per_second %>· <%= @data_migration.rows_per_second %> rows/s<% end %>
+    <% if stats["timings_ms"].present? %>
+      <span class="muted">(<%= stats["timings_ms"].map { |phase, ms| "#{phase} #{ms} ms" }.join(" · ") %>)</span>
+    <% end %>
+  </dd>
+  <dt>Source file</dt>
+  <dd>
+    <% if @data_migration.source_file_purged_at %>
+      Deleted after processing at <%= format_time(@data_migration.source_file_purged_at) %>
+    <% else %>
+      Waiting to be processed
+    <% end %>
+  </dd>
+</dl>
+
+<% if @data_migration.finished? %>
+  <h2>Summary</h2>
+  <div class="cards">
+    <% [ [ "Rows", @data_migration.total_rows ],
+         [ "Created", @data_migration.created_count ],
+         [ "Updated", @data_migration.updated_count ],
+         [ "Unchanged", @data_migration.unchanged_count ],
+         [ "Rejected", @data_migration.rejected_count ],
+         [ "Duplicate", @data_migration.duplicate_count ],
+         [ "With warnings", @data_migration.rows_with_warnings_count ],
+         [ "Acceptance rate", format_percent(summary["acceptance_rate"]) ],
+         [ "Patients in Ava after", stats["patients_total_after"] || "—" ] ].each do |label, value| %>
+      <div class="card">
+        <div class="value"><%= value %></div>
+        <div class="label"><%= label %></div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @data_migration.rejected_count.positive? || @data_migration.rows_with_warnings_count.positive? %>
+    <p><%= link_to "Download issue report (CSV)", data_migration_issue_report_path(@data_migration, format: :csv) %>
+      <span class="muted">— rejected rows and rows with warnings, with their original values, to send back to the clinic.</span></p>
+  <% end %>
+
+  <div class="two-columns">
+    <section>
+      <h2>Rejection reasons</h2>
+      <% if stats["rejection_reasons"].present? %>
+        <table>
+          <% sorted_counts(stats["rejection_reasons"]).each do |code, count| %>
+            <tr>
+              <td><%= link_to label_for_code(code), data_migration_path(@data_migration, issue: code, anchor: "rows") %></td>
+              <td class="number"><%= count %></td>
+            </tr>
+          <% end %>
+        </table>
+      <% else %>
+        <p class="muted">No rows rejected.</p>
+      <% end %>
+
+      <h2>Issues</h2>
+      <% if stats["issues"].present? %>
+        <table>
+          <thead><tr><th>Issue</th><th>Severity</th><th>Fields</th><th class="number">Rows</th></tr></thead>
+          <tbody>
+            <% stats["issues"].sort_by { |code, details| [ -details["rows"], code ] }.each do |code, details| %>
+              <tr>
+                <td><%= link_to label_for_code(code), data_migration_path(@data_migration, issue: code, anchor: "rows") %></td>
+                <td><%= tag.span(details["severity"], class: "badge badge-#{details["severity"]}") %></td>
+                <td><%= details["fields"].map { |field| field_label(field) }.join(", ") %></td>
+                <td class="number"><%= details["rows"] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="muted">No issues found.</p>
+      <% end %>
+    </section>
+
+    <section>
+      <h2>Field completeness</h2>
+      <% if stats["completeness"].present? %>
+        <p class="muted">Of <%= summary["accepted_rows"] %> accepted rows. Highlighted fields lost values to invalid data.</p>
+        <table>
+          <thead><tr><th>Field</th><th class="number">In file</th><th class="number">Valid after cleaning</th></tr></thead>
+          <tbody>
+            <% in_field_order(stats["completeness"]).each do |field, counts| %>
+              <tr class="<%= "highlight" if counts["in_file"] != counts["valid"] %>">
+                <td><%= field_label(field) %></td>
+                <td class="number"><%= counts["in_file"] %> (<%= format_percent(counts["in_file_percent"]) %>)</td>
+                <td class="number"><%= counts["valid"] %> (<%= format_percent(counts["valid_percent"]) %>)</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p class="muted">Not available for this migration.</p>
+      <% end %>
+    </section>
+  </div>
+
+  <div class="two-columns">
+    <% [ [ "Values reformatted by cleaning", stats["reformatted"], ->(key) { field_label(key) } ],
+         [ "Fields changed on existing patients", stats["changes"], ->(key) { field_label(key) } ],
+         [ "Health number province", stats.dig("distributions", "health_number_province"), ->(key) { "#{Province.name_for(key)} (#{key})" } ],
+         [ "Sex", stats.dig("distributions", "sex"), ->(key) { key.to_s.humanize } ] ].each do |title, counts, label| %>
+      <section>
+        <h2><%= title %></h2>
+        <% if counts.present? %>
+          <table>
+            <% sorted_counts(counts).each do |key, count| %>
+              <tr><td><%= label.call(key) %></td><td class="number"><%= count %></td></tr>
+            <% end %>
+          </table>
+        <% else %>
+          <p class="muted">None.</p>
+        <% end %>
+      </section>
+    <% end %>
+  </div>
+<% end %>
+
+<% if (headers = stats["headers"]).present? %>
+  <h2>Columns</h2>
+  <dl class="details">
+    <dt>Mapped</dt>
+    <dd><%= in_field_order(headers["mapped"]).map { |field, header| "#{header} → #{field_label(field)}" }.join(" · ") %></dd>
+    <dt>Missing required</dt>
+    <dd><%= headers["missing_required"].presence&.map { |field| field_label(field) }&.join(", ") || "None" %></dd>
+    <dt>Ignored (unknown)</dt>
+    <dd><%= headers["unknown"].presence&.join(", ") || "None" %></dd>
+    <dt>Ignored (duplicate)</dt>
+    <dd><%= headers["duplicate"].presence&.join(", ") || "None" %></dd>
+  </dl>
+<% end %>
+
+<% if @data_migration.finished? && @data_migration.total_rows.positive? %>
+  <h2 id="rows">Rows</h2>
+  <div class="filters">
+    <%= link_to "All (#{@data_migration.total_rows})", data_migration_path(@data_migration, anchor: "rows"), class: ("active" unless @outcome_filter || @issue_filter) %>
+    <% DataMigrationRow::OUTCOMES.each do |outcome| %>
+      <% count = @data_migration.public_send("#{outcome}_count") %>
+      <% next if count.zero? %>
+      <%= link_to "#{outcome.humanize} (#{count})", data_migration_path(@data_migration, outcome: outcome, anchor: "rows"), class: ("active" if @outcome_filter == outcome) %>
+    <% end %>
+    <% if @issue_filter %>
+      <span>Issue: <strong><%= label_for_code(@issue_filter) %></strong> (<%= link_to "clear", data_migration_path(@data_migration, anchor: "rows") %>)</span>
+    <% end %>
+  </div>
+
+  <table>
+    <thead><tr><th class="number">Row</th><th>Outcome</th><th>Patient</th><th>Issues</th><th></th></tr></thead>
+    <tbody>
+      <% @rows.each do |row| %>
+        <tr>
+          <td class="number"><%= row.row_number %></td>
+          <td><%= tag.span(row.outcome, class: "badge badge-#{row.outcome}") %></td>
+          <td><%= row.patient_id ? link_to("Patient ##{row.patient_id}", patient_path(row.patient_id)) : "—" %></td>
+          <td>
+            <% row.issues.each do |issue| %>
+              <%= tag.span(label_for_code(issue["code"]), class: "badge badge-#{issue["severity"]}") %>
+            <% end %>
+          </td>
+          <td><%= link_to "Details", data_migration_row_path(@data_migration, row) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @rows.empty? %><p class="muted">No rows match this filter.</p><% end %>
+  <%= pagination_links %>
+<% end %>

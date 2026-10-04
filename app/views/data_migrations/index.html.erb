@@ -1,1 +1,83 @@
+<% content_for :title, "Data migrations" %>
+
+<% if @data_migrations.any? { |m| !m.finished? } %>
+  <div data-controller="auto-refresh"></div>
+<% end %>
+
 <h1>Data migrations</h1>
+
+<section class="panel">
+  <h2>Upload a patient CSV</h2>
+  <%= form_with model: @upload, url: data_migrations_path, scope: :upload_form do |form| %>
+    <div class="form-row">
+      <div>
+        <%= form.label :source_name, "Source" %>
+        <%= form.text_field :source_name, size: 32 %>
+      </div>
+      <div>
+        <%= form.label :file, "CSV file" %>
+        <%= form.file_field :file, accept: ".csv,text/csv" %>
+      </div>
+      <div>
+        <%= form.submit "Start migration" %>
+      </div>
+    </div>
+    <% if @upload.errors.any? %>
+      <ul class="field-errors">
+        <% @upload.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  <% end %>
+</section>
+
+<h2>History</h2>
+
+<% if @data_migrations.empty? %>
+  <p class="muted">No migrations yet.</p>
+<% else %>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Started</th>
+        <th>Source</th>
+        <th>File</th>
+        <th>Uploaded by</th>
+        <th>Status</th>
+        <th class="number">Rows</th>
+        <th class="number">Created</th>
+        <th class="number">Updated</th>
+        <th class="number">Unchanged</th>
+        <th class="number">Rejected</th>
+        <th class="number">Duplicate</th>
+        <th class="number">Warnings</th>
+        <th class="number">Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @data_migrations.each do |migration| %>
+        <tr>
+          <td><%= link_to "##{migration.id}", migration %></td>
+          <td class="nowrap"><%= format_time(migration.started_at || migration.created_at) %></td>
+          <td class="nowrap"><%= migration.source_name %></td>
+          <td><%= migration.filename %></td>
+          <td><%= migration.uploaded_by.email_address %></td>
+          <td><%= status_badge(migration.status) %></td>
+          <td class="number"><%= migration.total_rows %></td>
+          <td class="number"><%= migration.created_count %></td>
+          <td class="number"><%= migration.updated_count %></td>
+          <td class="number"><%= migration.unchanged_count %></td>
+          <td class="number"><%= migration.rejected_count %></td>
+          <td class="number"><%= migration.duplicate_count %></td>
+          <td class="number"><%= migration.rows_with_warnings_count %></td>
+          <td class="number"><%= format_duration(migration.duration) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+  <%= pagination_links %>
+<% end %>

@@ -1,0 +1,54 @@
+<% content_for :title, "Row #{@row.row_number} · Migration ##{@data_migration.id}" %>
+
+<p><%= link_to "← Migration ##{@data_migration.id}", data_migration_path(@data_migration, anchor: "rows") %></p>
+
+<h1>Row <%= @row.row_number %> <%= tag.span(@row.outcome, class: "badge badge-#{@row.outcome}") %></h1>
+
+<dl class="details">
+  <dt>Patient</dt>
+  <dd><%= @row.patient ? link_to(@row.patient.full_name.presence || "Patient ##{@row.patient_id}", @row.patient) : "Not imported" %></dd>
+</dl>
+
+<h2>Issues</h2>
+<% if @row.issues.any? %>
+  <table>
+    <thead><tr><th>Issue</th><th>Severity</th><th>Field</th></tr></thead>
+    <tbody>
+      <% @row.issues.each do |issue| %>
+        <tr>
+          <td><%= label_for_code(issue["code"]) %></td>
+          <td><%= tag.span(issue["severity"], class: "badge badge-#{issue["severity"]}") %></td>
+          <td><%= field_label(issue["field"]) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="muted">No issues.</p>
+<% end %>
+
+<% if @row.changed_fields.present? %>
+  <h2>Changes to the patient</h2>
+  <table>
+    <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+    <tbody>
+      <% @row.changed_fields.each do |field, (before, after)| %>
+        <tr><td><%= field_label(field) %></td><td><%= before.presence || "—" %></td><td><%= after.presence || "—" %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
+<h2>Original values</h2>
+<% if @row.raw_data_purged_at %>
+  <p class="muted">Deleted under the retention policy at <%= format_time(@row.raw_data_purged_at) %>.</p>
+<% elsif @row.raw_data.present? %>
+  <table>
+    <thead><tr><th>Column</th><th>Value as received</th></tr></thead>
+    <tbody>
+      <% @row.raw_data.each do |column, value| %>
+        <tr><td><%= column %></td><td><%= value.nil? ? tag.span("blank", class: "muted") : value %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
