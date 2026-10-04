@@ -1,4 +1,3 @@
-# Local development image (not for production).
 FROM ruby:3.3.6-slim
 
 RUN apt-get update -qq && \
