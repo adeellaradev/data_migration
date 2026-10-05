@@ -3,6 +3,8 @@ module PatientImport
     WRITE_LOCK_KEY = 72_616_001
     WRITE_ATTEMPTS = 2
 
+    INTERRUPTED_MESSAGE = "The migration was interrupted before it finished. Rows written before the interruption are kept; upload the file again to complete it."
+
     class FileError < StandardError; end
 
     Entry = Data.define(:row_number, :raw, :result)
@@ -18,6 +20,11 @@ module PatientImport
       status, error_message = import
       purge_source_file
       finish(status, error_message: error_message)
+    end
+
+    def abandon
+      purge_source_file
+      finish("failed", error_message: INTERRUPTED_MESSAGE)
     end
 
     private
@@ -68,7 +75,7 @@ module PatientImport
         content = @data_migration.source_file.download.force_encoding(Encoding::UTF_8).delete_prefix("﻿")
         raise FileError, "The file is not valid UTF-8 text." unless content.valid_encoding?
 
-        CSV.parse(content, headers: true, skip_blanks: true)
+        CSV.parse(content, headers: true)
       rescue CSV::MalformedCSVError => e
         raise FileError, "The CSV is malformed: #{e.message}"
       end
